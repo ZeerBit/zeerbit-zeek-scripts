@@ -7,12 +7,16 @@ module Conn;
 
 export {
 	redef record Conn::Info += {
-		## Longitude and latitude for the originator of the connection based on a GeoIP lookup.
+		## Geodata for the originator of the connection based on a GeoIP lookup.
 		orig_geo_lon: double &optional &log;
 		orig_geo_lat: double &optional &log;
-		## Longitude and latitude for the responder of the connection based on a GeoIP lookup.
+		orig_geo_cc: string &optional &log;
+    
+		## Geodata for the responder of the connection based on a GeoIP lookup.
 		resp_geo_lon: double &optional &log;
 		resp_geo_lat: double &optional &log;
+		resp_geo_cc: string &optional &log;
+    
 	};
 }
 
@@ -27,6 +31,8 @@ event connection_state_remove(c: connection) {
     		c$conn$orig_geo_lon = orig_loc$longitude;
     	if ( orig_loc?$latitude )
     		c$conn$orig_geo_lat = orig_loc$latitude;
+    	if ( orig_loc?$country_code )
+    		c$conn$orig_geo_cc = orig_loc$country_code;
     }
     if (c$id?$resp_h && ! Site::is_local_addr(c$id$resp_h)) {
     	local resp_loc = lookup_location(c$id$resp_h);
@@ -34,6 +40,8 @@ event connection_state_remove(c: connection) {
     		c$conn$resp_geo_lon = resp_loc$longitude;
     	if ( resp_loc?$latitude )
     		c$conn$resp_geo_lat = resp_loc$latitude;
+    	if ( resp_loc?$country_code )
+    		c$conn$resp_geo_cc = resp_loc$country_code;
     }
   }
 }
