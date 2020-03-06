@@ -10,7 +10,7 @@ export {
   type Info: record {
       ts: time &log;
       host_ip: addr &log;
-  		host_name: string &log;
+  		host_fqdn: string &optional &log;
     };
 }
 
@@ -26,7 +26,9 @@ event log_known_hosts(rec: Known::HostsInfo) {
     if (rec?$host && Site::is_local_addr(rec$host)) {
       when (local resolved_name = lookup_addr(rec$host)) { 
         if (resolved_name != "<???>") {
-          Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host, $host_name = resolved_name]);
+          Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host, $host_fqdn = resolved_name]);
+        } else {
+          Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host]);
         }
       }
     }
