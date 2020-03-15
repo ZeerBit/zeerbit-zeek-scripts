@@ -50,14 +50,14 @@ event ZeerHosts::add_host(rec: ZeerHosts::Info) {
   # Consider using event handlers instead of 'when' for performance reasons
   when (local r = Broker::put_unique(ZeerHosts::host_store$store, rec$host_ip, rec$host_fqdn, ZeerHosts::host_store_expiry)) {
   	if (r$status == Broker::SUCCESS && r$result as bool) {
-      Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host_ip, $host_fqdn = rec$host_fqdn]);
+      Log::write(ZeerHosts::LOG, rec);
   	}
   	else {
   		Reporter::error(fmt("%s: data store put_unique failure", ZeerHosts::host_store_name));
     }
   } timeout ZeerHosts::host_store_timeout {
   	# Can't really tell if master store ended up inserting a key.
-    Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host_ip, $host_fqdn = rec$host_fqdn]);
+    Log::write(ZeerHosts::LOG, rec);
   }
 }
 
@@ -68,15 +68,24 @@ event log_known_hosts(rec: Known::HostsInfo) {
     if (rec?$host && Site::is_local_addr(rec$host)) {
       when (local resolved_name = lookup_addr(rec$host)) {
       
-        if (resolved_name == "<???>") {
-          resolved_name = "";
+        if (resolved_name != "" && resolved_name != "<???>") {
+        
+          event ZeerHosts::add_host([$ts = rec$ts, $host_ip = rec$host, $host_fqdn = resolved_name]);
+          
+        } else {
+          # If not resolved, log but don't store:
+          # Store is a cache used to enrich conn.log with FQDN by Zeek, so we don't need unresolved entries there;
+          # zeer_hosts.log, on the other hand, is an enriched replacement for known_hosts.log, ingressed into SIEM
+          # to create an inventory of observed hosts, no matter with or without FQDN. It is up to log ingest pipeline
+          # to decide how to heandle missing FDQN in zeer_hosts.log
+          
+          Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host]);
+
         }
         
-        event ZeerHosts::add_host([$ts = rec$ts, $host_ip = rec$host, $host_fqdn = resolved_name]);
-
       } timeout ZeerHosts::dns_lookup_timeout {
       
-        event ZeerHosts::add_host([$ts = rec$ts, $host_ip = rec$host, $host_fqdn = ""]);
+          Log::write(ZeerHosts::LOG, [$ts = rec$ts, $host_ip = rec$host]);
 
       }
     }
