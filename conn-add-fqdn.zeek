@@ -8,6 +8,7 @@
 export {
   type host_info: record {
   	host_fqdn: string &optional;
+    was_attempted: bool &optional &default=F;
   };
     
 	redef record connection += {
@@ -31,32 +32,63 @@ export {
 
 # For zeer-hosts to work, local_nets have to be defined for the site.
 # Only local IPs are enriched with FQDN at this point
-# Starting with 3.1 connection_successful would be the best event to catch
 
-event connection_established(c: connection) {
+function add_host_info(c: connection, host_role: string) {
   if (|Site::local_nets| > 0) {
-    if (c$id?$orig_h && Site::is_local_addr(c$id$orig_h)) {
-    	when (local zeer_hosts_orig = Broker::get(ZeerHosts::host_store$store, c$id$orig_h)) {
-        local conn_orig = lookup_connection(c$id);
-        if (zeer_hosts_orig$status == Broker::SUCCESS && zeer_hosts_orig?$result && zeer_hosts_orig$result?$data) {
-          conn_orig$orig_info = [$host_fqdn = zeer_hosts_orig$result as string];
-        }
-      } timeout ZeerHosts::host_store_timeout {
-    		Reporter::error(fmt("ZeerHosts data store lookup timeout for %s", c$id$orig_h));
-      }
+    local host_ip: addr;
+    if (host_role == "orig" && c$id?$orig_h && Site::is_local_addr(c$id$orig_h)) {
+      host_ip = c$id$orig_h;
+    } else if (host_role == "resp" && c$id?$resp_h && Site::is_local_addr(c$id$resp_h)) {
+      host_ip = c$id$resp_h;    
     }
-    if (c$id?$resp_h && Site::is_local_addr(c$id$resp_h)) {
-    	when (local zeer_hosts_resp = Broker::get(ZeerHosts::host_store$store, c$id$resp_h)) {
-        local conn_resp = lookup_connection(c$id);
-        if (zeer_hosts_resp$status == Broker::SUCCESS && zeer_hosts_resp?$result && zeer_hosts_resp$result?$data) {
-          conn_resp$resp_info = [$host_fqdn = zeer_hosts_resp$result as string];
+    if (is_v4_addr(host_ip) || is_v6_addr(host_ip)) {
+    	when (local r = Broker::get(ZeerHosts::host_store$store, host_ip)) {
+        local conn = lookup_connection(c$id);
+        local h: host_info;
+        if (r$status == Broker::SUCCESS && r?$result && r$result?$data) {
+          h = [$host_fqdn = r$result as string, $was_attempted = T];
+        } else {
+          h = [$was_attempted = T];
+        }
+        if (host_role == "orig") {
+          conn$orig_info = h;
+        } else if (host_role == "resp") {
+          conn$resp_info = h;
         }
       } timeout ZeerHosts::host_store_timeout {
-    		Reporter::error(fmt("ZeerHosts data store lookup timeout for %s", c$id$resp_h));
+    		Reporter::error(fmt("ZeerHosts data store lookup timeout for %s", host_ip));
+        local conn_t = lookup_connection(c$id);
+        if (host_role == "orig") {
+          conn_t$orig_info = [$was_attempted = T];
+        } else if (host_role == "resp") {
+          conn_t$resp_info = [$was_attempted = T];
+        }
       }
     }
   }
 }
+
+# Starting with 3.1 connection_successful would be the best event to catch
+event connection_successful(c: connection) {
+  if (!c?$orig_info || !c$orig_info?$was_attempted || !c$orig_info$was_attempted) {
+    add_host_info(c, "orig");
+  }
+  if (!c?$resp_info || !c$resp_info?$was_attempted || !c$resp_info$was_attempted) {
+    add_host_info(c, "resp");
+  }
+}
+
+# Pririo to 3.1 connection_established would work, but only for TCP connections
+event connection_established(c: connection) {
+  if (!c?$orig_info || !c$orig_info?$was_attempted || !c$orig_info$was_attempted) {
+    add_host_info(c, "orig");
+  }
+  if (!c?$resp_info || !c$resp_info?$was_attempted || !c$resp_info$was_attempted) {
+    add_host_info(c, "resp");
+  }
+}
+
+# TODO starting with 3.1 use successful_connection_remove instead for better performance
 
 event connection_state_remove(c: connection) {
   if (c?$orig_info && c$orig_info?$host_fqdn && c?$conn) {
