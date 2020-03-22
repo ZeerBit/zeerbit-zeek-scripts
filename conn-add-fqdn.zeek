@@ -88,8 +88,6 @@ event connection_established(c: connection) {
   }
 }
 
-# TODO starting with 3.1 use successful_connection_remove instead for better performance
-
 event connection_state_remove(c: connection) {
   if (c?$orig_info && c$orig_info?$host_fqdn && c?$conn) {
     c$conn$orig_fqdn = c$orig_info$host_fqdn;
