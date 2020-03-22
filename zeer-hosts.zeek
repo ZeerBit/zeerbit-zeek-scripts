@@ -2,6 +2,13 @@
 
 @load base/frameworks/cluster
 
+module Known;
+
+export {
+	## You can adjust known_hosts record expiration here, ZeerHosts expiration will be (and has to be) derived from this value
+	#redef host_store_expiry = 15min;
+}
+
 module ZeerHosts;
 
 export {
@@ -22,10 +29,14 @@ export {
 	## The Broker topic name to use for :zeek:see:`ZeerHosts::host_store`.
 	const host_store_name = "zeek/zeer/hosts" &redef;
 
-	## The expiry interval of new entries in :zeek:see:`ZeerHosts::host_store`.
+  ## The expiry interval of new entries in :zeek:see:`ZeerHosts::host_store`.
 	## This also changes the interval at which hosts get logged.
-	const host_store_expiry = 1day &redef;
-
+	const host_store_expiry = Known::host_store_expiry &redef;
+  
+  # Expiration date for ZeerHosts should be close but shorter then the one for KnownHosts,
+  ## otherwise if it happens later, add_host will fail due to uniqueness check
+  const host_store_expiry_shift = 2sec &redef;
+    
 	## The timeout interval to use for operations against
 	## :zeek:see:`ZeerHosts::host_store`.
 	option host_store_timeout = 15sec;
@@ -48,7 +59,10 @@ event zeek_init() &priority=5 {
 
 event ZeerHosts::add_host(rec: ZeerHosts::Info) {
   # Consider using event handlers instead of 'when' for performance reasons
-  when (local r = Broker::put_unique(ZeerHosts::host_store$store, rec$host_ip, rec$host_fqdn, ZeerHosts::host_store_expiry)) {
+  when (local r = Broker::put_unique(ZeerHosts::host_store$store, 
+                                     rec$host_ip, 
+                                     rec$host_fqdn, 
+                                     ZeerHosts::host_store_expiry - (current_time() - rec$ts) - host_store_expiry_shift)) {
   	if (r$status == Broker::SUCCESS && r$result as bool) {
       Log::write(ZeerHosts::LOG, rec);
   	}
