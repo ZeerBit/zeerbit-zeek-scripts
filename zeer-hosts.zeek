@@ -7,6 +7,12 @@ module Known;
 export {
 	## You can adjust known_hosts record expiration here, ZeerHosts expiration will be (and has to be) derived from this value
 	#redef host_store_expiry = 15min;
+  
+  # Making KnownHosts store persistent. This will make sure ZeerHosts and KnownHosts 
+  # record expiration times are the same between Zeek restarts.
+  redef Cluster::stores += {
+    [Known::host_store_name] = Cluster::StoreInfo($backend = Broker::SQLITE)
+  };
 }
 
 module ZeerHosts;
