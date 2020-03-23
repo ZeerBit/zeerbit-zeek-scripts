@@ -1,7 +1,7 @@
 # zeerbit-zeek-scripts
 A collection of Zeek customization scripts
 
-## ZeerHosts
+## zeer-hosts.zeek
 ZeerHosts (`zeer_hosts.log`) is an enriched version of KnownHosts (`known_hosts.log`), with FQDN information collected via DNS PTR queries for IP addresses registered as KnownHosts. There are two main goals we followed in developing ZeerHosts:
 
 1. Local hosts inventory with IP/FDQN mapping. This is particular useful for ingesting into Elastic SIEM as ECS `host.*` entries, as it populates Hosts database. Supported by [zeerbit-ecs-pipeline](https://github.com/ZeerBit/zeerbit-ecs-pipeline)
