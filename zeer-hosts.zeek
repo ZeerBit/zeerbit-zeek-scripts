@@ -28,23 +28,23 @@ export {
   	host_fqdn: string &optional &log;
   };
 
-	## Holds the set of hosts. Keys in the store are addresses
-	## and their associated value will always be the "true" boolean.
+	## Holds mappings between host IP addresses and their hostnames. 
+  ## Keys in the store are addresses and their associated value are hostnames.
 	global host_store: Cluster::StoreInfo;
 
-	## The Broker topic name to use for :zeek:see:`ZeerHosts::host_store`.
+	## The Broker topic name to use for ZeerHosts::host_store.
 	const host_store_name = "zeek/zeer/hosts" &redef;
 
-  ## The expiry interval of new entries in :zeek:see:`ZeerHosts::host_store`.
+  ## The expiry interval of new entries in ZeerHosts::host_store.
 	## This also changes the interval at which hosts get logged.
 	const host_store_expiry = Known::host_store_expiry &redef;
   
-  # Expiration date for ZeerHosts should be close but shorter then the one for KnownHosts,
-  ## otherwise if it happens later, add_host will fail due to uniqueness check
+  ## Expiration date for records in ZeerHosts::host_store should be close but shorter 
+  ## than the one for KnownHosts::host_store, otherwise if it expires later, 
+  ## adding the same host again will fail due to uniqueness check.
   const host_store_expiry_shift = 2sec &redef;
     
-	## The timeout interval to use for operations against
-	## :zeek:see:`ZeerHosts::host_store`.
+	## The timeout interval to use for operations against ZeerHosts::host_store.
 	option host_store_timeout = 15sec;
 
 	## The timeout interval to use for DNS lookup operations
@@ -64,7 +64,6 @@ event zeek_init() &priority=5 {
 }
 
 event ZeerHosts::add_host(rec: ZeerHosts::Info) {
-  # Consider using event handlers instead of 'when' for performance reasons
   when (local r = Broker::put_unique(ZeerHosts::host_store$store, 
                                      rec$host_ip, 
                                      rec$host_fqdn, 
