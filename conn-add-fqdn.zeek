@@ -36,12 +36,17 @@ export {
 function add_host_info(c: connection, host_role: string) {
   if (|Site::local_nets| > 0) {
     local host_ip: addr;
+    local try_lookup: bool; # Workaround to see if host_ip was initialiazed and we should try looking up an fqdn for it
+    try_lookup = F;
     if (host_role == "orig" && c$id?$orig_h && Site::is_local_addr(c$id$orig_h)) {
       host_ip = c$id$orig_h;
+      try_lookup = T;
     } else if (host_role == "resp" && c$id?$resp_h && Site::is_local_addr(c$id$resp_h)) {
       host_ip = c$id$resp_h;    
+      try_lookup = T;
     }
-    if (is_v4_addr(host_ip) || is_v6_addr(host_ip)) {
+    # WARNING: calling is_v4_addr or is_v6_addr over uninitialized addr will cause memory leak
+    if (try_lookup && (is_v4_addr(host_ip) || is_v6_addr(host_ip))) { 
     	when (local r = Broker::get(ZeerHosts::host_store$store, host_ip)) {
         local conn = lookup_connection(c$id);
         local h: host_info;
