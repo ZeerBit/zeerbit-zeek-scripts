@@ -7,11 +7,11 @@
 
 export {
   type host_info: record {
-  	host_fqdn: string &optional;
+    host_fqdn: string &optional;
     was_attempted: bool &optional &default=F;
   };
     
-	redef record connection += {
+  redef record connection += {
     orig_info: host_info &optional;
     resp_info: host_info &optional;
   };
@@ -20,14 +20,14 @@ export {
 module Conn;
 
 export {
-	redef record Conn::Info += {
-		## FQDN for the originator of the connection
-		orig_fqdn: string &optional &log;
+  redef record Conn::Info += {
+    ## FQDN for the originator of the connection
+    orig_fqdn: string &optional &log;
     
-		## FQDN for the responder of the connection
-		resp_fqdn: string &optional &log;
+    ## FQDN for the responder of the connection
+    resp_fqdn: string &optional &log;
     
-	};
+  };
 }
 
 # For zeer-hosts to work, local_nets have to be defined for the site.
@@ -47,7 +47,7 @@ function add_host_info(c: connection, host_role: string) {
     }
     # WARNING: calling is_v4_addr or is_v6_addr over uninitialized addr will cause memory leak
     if (try_lookup && (is_v4_addr(host_ip) || is_v6_addr(host_ip))) { 
-    	when (local r = Broker::get(ZeerHosts::host_store$store, host_ip)) {
+      when (local r = Broker::get(ZeerHosts::host_store$store, host_ip)) {
         local conn = lookup_connection(c$id);
         local h: host_info;
         if (r$status == Broker::SUCCESS && r?$result && r$result?$data) {
@@ -61,7 +61,7 @@ function add_host_info(c: connection, host_role: string) {
           conn$resp_info = h;
         }
       } timeout ZeerHosts::host_store_timeout {
-    		Reporter::error(fmt("ZeerHosts data store lookup timeout for %s", host_ip));
+        Reporter::error(fmt("ZeerHosts data store lookup timeout for %s", host_ip));
         local conn_t = lookup_connection(c$id);
         if (host_role == "orig") {
           conn_t$orig_info = [$was_attempted = T];

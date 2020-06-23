@@ -5,8 +5,8 @@
 module Known;
 
 export {
-	## You can adjust known_hosts record expiration here, ZeerHosts expiration will be (and has to be) derived from this value
-	#redef host_store_expiry = 15min;
+  ## You can adjust known_hosts record expiration here, ZeerHosts expiration will be (and has to be) derived from this value
+  #redef host_store_expiry = 15min;
   
   # Making KnownHosts store persistent. This will make sure ZeerHosts and KnownHosts 
   # record expiration times are the same between Zeek restarts.
@@ -25,37 +25,37 @@ export {
   type Info: record {
     ts: time &log;
     host_ip: addr &log;
-  	host_fqdn: string &optional &log;
+    host_fqdn: string &optional &log;
   };
 
-	## Holds mappings between host IP addresses and their hostnames. 
+  ## Holds mappings between host IP addresses and their hostnames. 
   ## Keys in the store are addresses and their associated value are hostnames.
-	global host_store: Cluster::StoreInfo;
+  global host_store: Cluster::StoreInfo;
 
-	## The Broker topic name to use for ZeerHosts::host_store.
-	const host_store_name = "zeek/zeer/hosts" &redef;
+  ## The Broker topic name to use for ZeerHosts::host_store.
+  const host_store_name = "zeek/zeer/hosts" &redef;
 
   ## The expiry interval of new entries in ZeerHosts::host_store.
-	## This also changes the interval at which hosts get logged.
-	const host_store_expiry = Known::host_store_expiry &redef;
+  ## This also changes the interval at which hosts get logged.
+  const host_store_expiry = Known::host_store_expiry &redef;
   
   ## Expiration date for records in ZeerHosts::host_store should be close but shorter 
   ## than the one for KnownHosts::host_store, otherwise if it expires later, 
   ## adding the same host again will fail due to uniqueness check.
   const host_store_expiry_shift = 2sec &redef;
     
-	## The timeout interval to use for operations against ZeerHosts::host_store.
-	option host_store_timeout = 15sec;
+  ## The timeout interval to use for operations against ZeerHosts::host_store.
+  option host_store_timeout = 15sec;
 
-	## The timeout interval to use for DNS lookup operations
-	option dns_lookup_timeout = 5sec;
+  ## The timeout interval to use for DNS lookup operations
+  option dns_lookup_timeout = 5sec;
   
   global ZeerHosts::add_host: event(rec: Info);
 }
 
 event zeek_init() {
   # Initialize the persistent store
-	ZeerHosts::host_store = Cluster::create_store(ZeerHosts::host_store_name, T);
+  ZeerHosts::host_store = Cluster::create_store(ZeerHosts::host_store_name, T);
 }
 
 event zeek_init() &priority=5 {
@@ -68,14 +68,14 @@ event ZeerHosts::add_host(rec: ZeerHosts::Info) {
                                      rec$host_ip, 
                                      rec$host_fqdn, 
                                      ZeerHosts::host_store_expiry - (current_time() - rec$ts) - host_store_expiry_shift)) {
-  	if (r$status == Broker::SUCCESS && r$result as bool) {
+    if (r$status == Broker::SUCCESS && r$result as bool) {
       Log::write(ZeerHosts::LOG, rec);
-  	}
-  	else {
-  		Reporter::error(fmt("%s: data store put_unique failure", ZeerHosts::host_store_name));
+    }
+    else {
+      Reporter::error(fmt("%s: data store put_unique failure", ZeerHosts::host_store_name));
     }
   } timeout ZeerHosts::host_store_timeout {
-  	# Can't really tell if master store ended up inserting a key.
+    # Can't really tell if master store ended up inserting a key.
     Log::write(ZeerHosts::LOG, rec);
   }
 }
