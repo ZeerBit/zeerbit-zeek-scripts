@@ -7,6 +7,16 @@ ZeerHosts (`zeer_hosts.log`) is an enriched version of KnownHosts (`known_hosts.
 1. Local hosts inventory with IP/FDQN mapping. This is particular useful for ingesting into Elastic SIEM as ECS `host.*` entries, as it populates Hosts database. Supported by [zeerbit-ecs-pipeline](https://github.com/ZeerBit/zeerbit-ecs-pipeline)
 2. Enrichment of `conn.log` with `orig_fqdn` and/or `resp_fqdn` via `conn-add-fqdn.zeek`
 
+By default, ZeerHosts inventory, as well as KnownHosts, doesn't persist between Zeek restarts. To make it persistent, add the following to you local site policy:
+
+    # Making KnownHosts store persistent. This will make sure ZeerHosts and KnownHosts 
+    # record expiration times are the same between Zeek restarts.
+    redef Cluster::stores += {
+      [Known::host_store_name]     = Cluster::StoreInfo($backend = Broker::SQLITE),
+      [ZeerHosts::host_store_name] = Cluster::StoreInfo($backend = Broker::SQLITE)
+    };
+
+
 ## conn-add-fqdn.zeek
 Enrichment of `conn.log` with `orig_fqdn` and/or `resp_fqdn`, for IPs in local networks only, using `ZeerHosts` inventory. Mapped into ECS fields `source.domain` and `destination.domain` by [zeerbit-ecs-pipeline](https://github.com/ZeerBit/zeerbit-ecs-pipeline).
 
